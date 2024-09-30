@@ -4,7 +4,7 @@ import os
 import time
 from dataclasses import dataclass
 
-import gym
+import gymnasium as gym
 import numpy as np
 import torch
 from agents.maddpg.buffer import ReplayBuffer

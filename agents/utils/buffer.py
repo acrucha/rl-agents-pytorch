@@ -3,7 +3,7 @@ from typing import Dict, Generator, Optional, Union, Tuple, NamedTuple
 
 import numpy as np
 import torch as th
-from gym import spaces
+from gymnasium import spaces
 
 def get_action_dim(action_space: spaces.Space) -> int:
     """

@@ -1,7 +1,7 @@
 import torch
 import collections
 import time
-import gym
+import gymnasium as gym
 import copy
 import numpy as np
 from agents.utils import NStepTracer, OrnsteinUhlenbeckNoise, generate_gif, HyperParameters, ExperienceFirstLast

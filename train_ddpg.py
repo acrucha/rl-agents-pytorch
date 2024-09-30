@@ -5,7 +5,7 @@ import datetime
 import os
 import time
 
-import gym
+import gymnasium as gym
 import numpy as np
 import rsoccer_gym
 import torch.multiprocessing as mp
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         EXP_NAME=args.name,
         DEVICE=device,
         ENV_NAME=args.env,
-        N_ROLLOUT_PROCESSES=2,
+        N_ROLLOUT_PROCESSES=1,
         LEARNING_RATE=0.0001,
         EXP_GRAD_RATIO=10,
         BATCH_SIZE=256,
@@ -54,9 +54,10 @@ if __name__ == "__main__":
         REPLAY_INITIAL=100000,
         SAVE_FREQUENCY=100000,
         GIF_FREQUENCY=100000,
-        TOTAL_GRAD_STEPS=2000000
+        TOTAL_GRAD_STEPS=2000000,
+        MAX_EPISODE_STEPS=1200,
     )
-    wandb.init(project='rl-agents', name=hp.EXP_NAME, config=hp.to_dict())
+    # wandb.init(project='rl-agents', name=hp.EXP_NAME, config=hp.to_dict())
     current_time = datetime.datetime.now().strftime('%b-%d_%H-%M-%S')
     tb_path = os.path.join('runs', current_time + '_'
                            + hp.ENV_NAME + '_' + hp.EXP_NAME)
@@ -189,7 +190,7 @@ if __name__ == "__main__":
                     metrics[key] = np.mean([info[key] for info in ep_infos])
 
             # Log metrics
-            wandb.log(metrics)
+            # wandb.log(metrics)
 
             if hp.NOISE_SIGMA_DECAY and sigma_m.value > hp.NOISE_SIGMA_MIN \
                 and n_grads % hp.NOISE_SIGMA_GRAD_STEPS == 0:

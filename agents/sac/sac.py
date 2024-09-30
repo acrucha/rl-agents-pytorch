@@ -4,7 +4,7 @@ import os
 import time
 from dataclasses import dataclass
 
-import gym
+import gymnasium as gym
 import torch
 import torch.nn.functional as F
 from agents.sac import GaussianPolicy, QNetwork, TargetCritic

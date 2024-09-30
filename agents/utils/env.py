@@ -2,7 +2,7 @@ from multiprocessing import Process, Pipe
 from typing import Tuple, Any, List, Dict, Union
 
 import numpy as np
-from gym import Env, make
+from gymnasium import Env, make
 
 
 def tile_images(img_nhwc):

@@ -5,7 +5,7 @@ import datetime
 import os
 import time
 
-import gym
+import gymnasium as gym
 import numpy as np
 import rsoccer_gym
 import torch.multiprocessing as mp

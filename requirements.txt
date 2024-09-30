@@ -1,8 +1,8 @@
-torch
-gym==0.21.0
-rsoccer_gym
-wandb
-pillow
-PyVirtualDisplay
+torch==2.0.0
+git+https://github.com/goncamateus/rSoccer.git@dev#egg=rsoccer_gym
+wandb>=0.16.0
+pyvirtualdisplay>=3.0
+moviepy >= 1.0.0
+pandas >= 2.1.4
+numpy==1.21.2
 protobuf==3.20.2
-pyglet==1.5.27

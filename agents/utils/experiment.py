@@ -1,11 +1,32 @@
 import dataclasses
 
-import gym
+import gymnasium as gym
 import rsoccer_gym
 import torch
 import os
 
 import wandb
+
+from gymnasium.envs.registration import register
+
+register(
+    id="Pid-v0",
+    entry_point="envs.pid:VSSPIDTuningEnv",
+    kwargs={"max_steps": 1200, "repeat_action": 1},
+    max_episode_steps=1200,
+)
+
+register(
+    id="Penalty-v0",
+    entry_point="envs.penalty:VSSPenaltyEnv",
+    kwargs={"max_steps": 1200, "repeat_action": 1},
+    max_episode_steps=1200,
+)
+
+register(
+    id="Attacker-v0",
+    entry_point="envs.vssef:VSSEF"
+)
 
 
 @dataclasses.dataclass
