@@ -31,6 +31,9 @@ if __name__ == "__main__":
                         help="Name of the run")
     parser.add_argument("-e", "--env", required=True,
                         help="Name of the gym environment")
+    
+    parser.add_argument("--track", default=False, help="Enable wandb")
+    
     args = parser.parse_args()
     device = "cuda" if args.cuda else "cpu"
 
@@ -57,7 +60,8 @@ if __name__ == "__main__":
         TOTAL_GRAD_STEPS=2000000,
         MAX_EPISODE_STEPS=1200,
     )
-    # wandb.init(project='rl-agents', name=hp.EXP_NAME, config=hp.to_dict())
+    if args.track:
+        wandb.init(project='rl-agents', name=hp.EXP_NAME, config=hp.to_dict())
     current_time = datetime.datetime.now().strftime('%b-%d_%H-%M-%S')
     tb_path = os.path.join('runs', current_time + '_'
                            + hp.ENV_NAME + '_' + hp.EXP_NAME)
@@ -190,7 +194,8 @@ if __name__ == "__main__":
                     metrics[key] = np.mean([info[key] for info in ep_infos])
 
             # Log metrics
-            # wandb.log(metrics)
+            if args.track:
+                wandb.log(metrics)
 
             if hp.NOISE_SIGMA_DECAY and sigma_m.value > hp.NOISE_SIGMA_MIN \
                 and n_grads % hp.NOISE_SIGMA_GRAD_STEPS == 0:
