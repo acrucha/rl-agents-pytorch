@@ -9,6 +9,7 @@ import torch
 from agents.ddpg import DDPGActor
 from agents.sac import GaussianPolicy
 from agents.utils.gif import generate_gif
+from agents.ddpg import DDPGHP
 
 
 def get_env_specs(env_name):
@@ -37,9 +38,32 @@ if __name__ == "__main__":
                             checkpoint['LOG_SIG_MAX'], checkpoint['EPSILON']).to(device)
     else:
         raise AssertionError
+    
+    hp = DDPGHP(
+        EXP_NAME=checkpoint['ENV_NAME'],
+        DEVICE=torch.device('cpu'),
+        ENV_NAME=checkpoint['ENV_NAME'],
+        N_ROLLOUT_PROCESSES=2,
+        LEARNING_RATE=0.0001,
+        EXP_GRAD_RATIO=10,
+        BATCH_SIZE=256,
+        GAMMA=0.95,
+        REWARD_STEPS=3,
+        NOISE_SIGMA_INITIAL=0.8,
+        NOISE_THETA=0.15,
+        NOISE_SIGMA_DECAY=0.99,
+        NOISE_SIGMA_MIN=0.15,
+        NOISE_SIGMA_GRAD_STEPS=3000,
+        REPLAY_SIZE=5000000,
+        REPLAY_INITIAL=100000,
+        SAVE_FREQUENCY=100000,
+        GIF_FREQUENCY=100000,
+        TOTAL_GRAD_STEPS=2000000
+    )
+
 
     pi.load_state_dict(checkpoint['pi_state_dict'])
     pi.eval()
 
     generate_gif(env=env, filepath=args.checkpoint.replace(
-        "pth", "gif").replace("checkpoint", "gif"), pi=pi, device=device)
+        "pth", "gif").replace("checkpoint", "gif"), pi=pi, hp=hp) # , device=device)
