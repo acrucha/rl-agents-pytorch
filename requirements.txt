@@ -1,8 +1,9 @@
 torch==2.0.0
+gymnasium
 git+https://github.com/goncamateus/rSoccer.git@dev#egg=rsoccer_gym
 wandb>=0.16.0
 pyvirtualdisplay>=3.0
 moviepy >= 1.0.0
 pandas >= 2.1.4
 numpy==1.21.2
-protobuf==3.20.2
+protobuf==3.20
