@@ -110,6 +110,8 @@ if __name__ == "__main__":
 
     try:
         while n_grads < hp.TOTAL_GRAD_STEPS:
+            if n_grads % 1000 == 0:
+                print(f"Step: {n_grads}/{hp.TOTAL_GRAD_STEPS}")
             metrics = {}
             ep_infos = list()
             st_time = time.perf_counter()
