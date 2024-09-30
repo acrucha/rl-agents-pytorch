@@ -1,0 +1,8 @@
+torch
+gym==0.21.0
+rsoccer_gym
+wandb
+pillow
+PyVirtualDisplay
+protobuf==3.20.2
+pyglet==1.5.27
