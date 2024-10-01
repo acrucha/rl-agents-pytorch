@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     checkpoint = torch.load(args.checkpoint)
 
-    env = gym.make(checkpoint['ENV_NAME'])
+    env = gym.make(checkpoint['ENV_NAME'], render_mode="rgb_array")
 
     if checkpoint['AGENT'] == 'ddpg_async':
         pi = DDPGActor(checkpoint['N_OBS'], checkpoint['N_ACTS']).to(device)

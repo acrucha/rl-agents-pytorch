@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-import PIL
+from PIL import Image
 import os
+from tqdm import tqdm
 
 def generate_gif(
     env, 
@@ -28,7 +29,7 @@ def generate_gif(
     # collect frames
     frames = []
     s, _ = env.reset()
-    for t in range(max_episode_steps):
+    for t in tqdm(iterable=range(max_episode_steps), desc="Running Episode..."):
         if hp.AGENT != "maddpg_async":
             s_v = torch.Tensor(s).to(hp.DEVICE)
             a = pi.get_action(s_v)
@@ -37,9 +38,9 @@ def generate_gif(
             a = [agent.action(obs) for agent, obs in zip(pi, s)]
             s_next, r, done, trunc, info = env.step(a)
         # store frame
-        frame = env.render(mode='rgb_array')
-        frame = PIL.Image.fromarray(frame)
-        frame = frame.convert('P', palette=PIL.Image.ADAPTIVE)
+        frame = env.render()
+        frame = Image.fromarray(frame)
+        frame = frame.convert('P', palette=Image.ADAPTIVE)
         if resize_to is not None:
             if not (isinstance(resize_to, tuple) and len(resize_to) == 2):
                 raise TypeError(
@@ -54,9 +55,9 @@ def generate_gif(
         s = s_next
 
     # store last frame
-    frame = env.render(mode='rgb_array')
-    frame = PIL.Image.fromarray(frame)
-    frame = frame.convert('P', palette=PIL.Image.ADAPTIVE)
+    frame = env.render()
+    frame = Image.fromarray(frame)
+    frame = frame.convert('P', palette=Image.ADAPTIVE)
     if resize_to is not None:
         frame = frame.resize(resize_to)
     frames.append(frame)
