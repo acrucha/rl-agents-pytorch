@@ -27,15 +27,15 @@ def generate_gif(
     
     # collect frames
     frames = []
-    s = env.reset()
+    s, _ = env.reset()
     for t in range(max_episode_steps):
         if hp.AGENT != "maddpg_async":
             s_v = torch.Tensor(s).to(hp.DEVICE)
             a = pi.get_action(s_v)
-            s_next, r, done, info = env.step(a)
+            s_next, r, done, trunc, info = env.step(a)
         else:
             a = [agent.action(obs) for agent, obs in zip(pi, s)]
-            s_next, r, done, info = env.step(a)
+            s_next, r, done, trunc, info = env.step(a)
         # store frame
         frame = env.render(mode='rgb_array')
         frame = PIL.Image.fromarray(frame)

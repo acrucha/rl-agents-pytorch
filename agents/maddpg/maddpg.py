@@ -58,7 +58,7 @@ def data_func(
                              pi=copy.deepcopy(trainers), hp=hp)
 
             done = False
-            s = env.reset()
+            s, _ = env.reset()
             noise.reset()
             noise.sigma = sigma_m.value
             info = {}
@@ -69,7 +69,7 @@ def data_func(
                 # Step the environment
                 actions = [agent.action(obs) for agent, obs in zip(trainers, s)]
                 a = [noise(act) for act in actions]
-                s_next, r, done, info = env.step(a)
+                s_next, r, done, trunc, info = env.step(a)
                 ep_steps += 1
                 if hp.MULTI_AGENT:
                     for i in range(hp.N_AGENTS):

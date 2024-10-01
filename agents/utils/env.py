@@ -72,7 +72,7 @@ class SubProcessEnv(Process):
             elif command == 'render':
                 self.pipe.send(env.render(args))
             elif command == 'step':
-                state, reward, done, aux = env.step(args)
+                state, reward, done, trunc, aux = env.step(args)
                 steps += 1
                 if isinstance(reward, int) or isinstance(reward, float):
                     collected_reward += reward
@@ -82,7 +82,7 @@ class SubProcessEnv(Process):
                     else:
                         collected_reward += np.array(reward)
                 if done:
-                    state = env.reset()
+                    state, _ = env.reset()
                 self.pipe.send((state, reward, done, aux, collected_reward))
                 if done:
                     steps = 0

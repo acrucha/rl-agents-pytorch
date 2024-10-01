@@ -110,8 +110,6 @@ if __name__ == "__main__":
 
     try:
         while n_grads < hp.TOTAL_GRAD_STEPS:
-            if n_grads % 1000 == 0:
-                print(f"Step: {n_grads}/{hp.TOTAL_GRAD_STEPS}")
             metrics = {}
             ep_infos = list()
             st_time = time.perf_counter()
@@ -141,7 +139,6 @@ if __name__ == "__main__":
                     new_samples += 1
             n_samples += new_samples
             sample_time = time.perf_counter()
-
 
             # Only start training after buffer is larger than initial value
             if buffer.size() < hp.REPLAY_INITIAL:
@@ -207,6 +204,7 @@ if __name__ == "__main__":
                     sigma_m.value *= hp.NOISE_SIGMA_DECAY
 
             if hp.SAVE_FREQUENCY and n_grads % hp.SAVE_FREQUENCY == 0:
+                print("Saving checkpoint at grad step %d" % n_grads)
                 save_checkpoint(
                     hp=hp,
                     metrics={

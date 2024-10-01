@@ -54,7 +54,7 @@ def data_func(
                              pi=copy.deepcopy(pi), hp=hp)
 
             done = False
-            s = env.reset()
+            s, _ = env.reset()
             noise.reset()
             if hp.MULTI_AGENT:
                 [tracer[i].reset() for i in range(hp.N_AGENTS)]
@@ -74,7 +74,7 @@ def data_func(
                 a_v = pi(s_v)
                 a = a_v.cpu().numpy()
                 a = noise(a)
-                s_next, r, done, info = env.step(a)
+                s_next, r, done, trunc, info = env.step(a)
                 ep_steps += 1
                 if hp.MULTI_AGENT:
                     for i in range(hp.N_AGENTS):

@@ -50,7 +50,7 @@ def data_func(
                              pi=copy.deepcopy(pi), hp=hp)
 
             done = False
-            s = env.reset()
+            s, _ = env.reset()
             if hp.MULTI_AGENT:
                 [tracer[i].reset() for i in range(hp.N_AGENTS)]
             info = {}
@@ -64,7 +64,7 @@ def data_func(
                 # Step the environment
                 s_v = torch.Tensor(s).to(device)
                 a = pi.get_action(s_v)
-                s_next, r, done, info = env.step(a)
+                s_next, r, done, trunc, info = env.step(a)
 
                 ep_steps += 1
                 if hp.MULTI_AGENT:

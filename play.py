@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     while True:
         done = False
-        s = env.reset()
+        s, _ = env.reset()
         info = {}
         ep_steps = 0
         ep_rw = 0
@@ -46,7 +46,7 @@ if __name__ == "__main__":
             # Step the environment
             s_v = torch.Tensor(s).to(device)
             a = pi.get_action(s_v)
-            s_next, r, done, info = env.step(a)
+            s_next, r, done, trunc, info = env.step(a)
             ep_steps += 1
             ep_rw += r
             env.render()
