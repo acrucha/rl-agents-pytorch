@@ -9,31 +9,35 @@ import wandb
 
 from gymnasium.envs.registration import register
 
-register(
-    id="Pid-v0",
-    entry_point="envs.pid:VSSPIDTuningEnv",
-    kwargs={"max_steps": 1200, "repeat_action": 1},
-    max_episode_steps=1200,
-)
+def registering():
 
-register(
-    id="Penalty-v0",
-    entry_point="envs.penalty:VSSPenaltyEnv",
-    kwargs={"max_steps": 1200, "repeat_action": 1},
-    max_episode_steps=1200,
-)
+    register(
+        id="Pid-v0",
+        entry_point="envs.pid:VSSPIDTuningEnv",
+        kwargs={"max_steps": 1200, "repeat_action": 1},
+        max_episode_steps=1200,
+    )
 
-register(
-    id="VSSEF-v0",
-    entry_point="envs.vssef:VSSEF",
-    kwargs={"max_steps": 1200},
-)
+    register(
+        id="Penalty-v0",
+        entry_point="envs.penalty:VSSPenaltyEnv",
+        kwargs={"max_steps": 1200, "repeat_action": 1},
+        max_episode_steps=1200,
+    )
 
-register(
-    id="VSS-all-v0",
-    entry_point="envs.vss:VSSAttackerEnv",
-    kwargs={"max_steps": 1200},
-)
+    register(
+        id="VSSEF-v0",
+        entry_point="envs.vssef:VSSEF",
+        kwargs={"max_steps": 1200},
+    )
+
+    register(
+        id="VSS-all-v0",
+        entry_point="envs.vss:VSSAttackerEnv",
+        kwargs={"max_steps": 1200},
+    )
+
+registering()
 
 @dataclasses.dataclass
 class HyperParameters:
