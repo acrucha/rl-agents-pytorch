@@ -31,7 +31,7 @@ class VSSStratEnv(VSSEnv):
             low=-self.NORM_BOUNDS, high=self.NORM_BOUNDS, shape=(OBSERVATIONS_SIZE,), dtype=np.float32
         )
         self.steps = 0
-        self.max_steps = 2000
+        self.max_steps = 1200
 
     def reset(self, *, seed=None, options=None):
         self.cumulative_reward_info = {
@@ -52,13 +52,16 @@ class VSSStratEnv(VSSEnv):
         return observation, reward, terminated, truncated, self.cumulative_reward_info
 
     def _calculate_reward_and_done(self):
-        reward = np.zeros(4, dtype=np.float32)
+        reward = np.zeros(3, dtype=np.float32)
         goal = False
-        w_move = 1
-        w_ball_grad = 3
-        w_energy = 0.00186
-        w_goal = 20
-        w_vel = 2
+        # w_move = 1
+        # w_ball_grad = 3
+        # w_energy = 0.00186
+        w_move = 0.2
+        w_ball_grad = 0.8
+        w_energy = 2e-4
+        w_goal = 10
+        w_vel = 0.2
         # Check if goal ocurred
         if self.frame.ball.x > (self.field.length / 2):
             self.cumulative_reward_info["reward_Goal"] += 1
@@ -81,26 +84,26 @@ class VSSStratEnv(VSSEnv):
                 # Calculate Energy penalty
                 energy_penalty = self.__energy_penalty()
 
-                velocity_penalty = self.__velocity_penalty()
+                # velocity_penalty = self.__velocity_penalty()
 
                 reward += np.array(
                     [
                         move_reward,
                         grad_ball_potential,
                         energy_penalty,
-                        velocity_penalty,
+                        # velocity_penalty,
                     ]
                 )
 
                 self.cumulative_reward_info["reward_Move"] += move_reward
                 self.cumulative_reward_info["reward_Ball"] += grad_ball_potential
                 self.cumulative_reward_info["reward_Energy"] += energy_penalty
-                self.cumulative_reward_info["reward_Vel"] += velocity_penalty
+                # self.cumulative_reward_info["reward_Vel"] += velocity_penalty
                 self.cumulative_reward_info["Original_reward"] += (
                     w_move * move_reward
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
-                    + w_vel * velocity_penalty
+                    # + w_vel * velocity_penalty
                 )
 
         return reward, goal
@@ -170,9 +173,10 @@ class VSSStratEnv(VSSEnv):
 
 class VSSEF(VSSStratEnv):
 
-    def __init__(self, render_mode=None):
+    def __init__(self, render_mode=None, max_steps=1200):
         super().__init__(render_mode=render_mode)
         self.cumulative_reward_info["reward_efficiency"] = 0
+        self.max_steps = max_steps
 
     def reset(self, *, seed=None, options=None):
         res = super().reset(seed=seed, options=options)

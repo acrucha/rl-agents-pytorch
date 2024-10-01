@@ -112,6 +112,7 @@ class VSSPenaltyEnv(VSSEnv):
             FPS = np.ceil((1200 // self.repeat_action) / 10)
 
         self.metadata["render_fps"] = FPS
+        self.max_steps = max_steps
 
         print('Environment initialized')
 

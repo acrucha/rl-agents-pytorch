@@ -24,10 +24,16 @@ register(
 )
 
 register(
-    id="Attacker-v0",
-    entry_point="envs.vssef:VSSEF"
+    id="VSSEF-v0",
+    entry_point="envs.vssef:VSSEF",
+    kwargs={"max_steps": 1200},
 )
 
+register(
+    id="VSS-all-v0",
+    entry_point="envs.vss:VSSAttackerEnv",
+    kwargs={"max_steps": 1200},
+)
 
 @dataclasses.dataclass
 class HyperParameters:
@@ -59,7 +65,7 @@ class HyperParameters:
     def __post_init__(self):
         env = gym.make(self.ENV_NAME)
         self.N_OBS, self.N_ACTS, self.MAX_EPISODE_STEPS = env.observation_space.shape[
-            0], env.action_space.shape[0], env.spec.max_episode_steps
+            0], env.action_space.shape[0], env.unwrapped.max_steps if hasattr(env, "max_steps") else env.spec.max_episode_steps 
         if self.MULTI_AGENT:
             self.N_AGENTS = env.action_space.shape[0]
             self.N_ACTS = env.action_space.shape[1]

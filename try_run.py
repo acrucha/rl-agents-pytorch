@@ -16,25 +16,26 @@ register(
 )
 
 register(
-    id="Attacker-v0",
-    entry_point="envs.vssef:VSSEF"
+    id="VSSEF-v0",
+    entry_point="envs.vssef:VSSEF",
+    kwargs={"max_steps": 1200},
 )
 
 register(
-    id="VSS-v0",
-    entry_point="rsoccer_gym.vss.env_vss:VSSEnv",
+    id="VSS-all-v0",
+    entry_point="envs.vss:VSSAttackerEnv",
+    kwargs={"max_steps": 1200},
 )
 
 # Using VSS Single Agent env
-env = gym.make('VSS-v0', render_mode="human")
+env = gym.make('VSSEF-v0', render_mode="human")
 
 env.reset()
-# Run for 1 episode and print reward at the end
-for i in range(1):
+# Run for 10 episode and print reward at the end
+for i in range(10):
     terminated = False
     truncated = False
     while not (terminated or truncated):
         # Step using random actions
         action = env.action_space.sample()
         next_state, reward, terminated, truncated, _ = env.step(action)
-    print(reward)

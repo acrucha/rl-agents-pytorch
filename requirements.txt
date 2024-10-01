@@ -7,3 +7,4 @@ moviepy >= 1.0.0
 pandas >= 2.1.4
 numpy==1.21.2
 protobuf==3.20
+pillow

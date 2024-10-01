@@ -7,6 +7,7 @@ import numpy as np
 from agents.utils import NStepTracer, OrnsteinUhlenbeckNoise, generate_gif, HyperParameters, ExperienceFirstLast
 import os
 from dataclasses import dataclass
+from envs.vssef import GoncaRewardWrapper
 
 
 @dataclass
@@ -29,6 +30,10 @@ def data_func(
     hp
 ):
     env = gym.make(hp.ENV_NAME)
+
+    if hp.ENV_NAME == "VSSEF-v0":
+        env = GoncaRewardWrapper(env)
+
     if hp.MULTI_AGENT:
         tracer = [NStepTracer(n=hp.REWARD_STEPS, gamma=hp.GAMMA)]*hp.N_AGENTS
     else:
