@@ -27,7 +27,7 @@ MAX_V_LINEAR = 1.2
 MAX_W_ANGULAR = 1.5
 
 class VSSPenaltyEnv(VSSEnv):
-    """This environment controls a single robot to go to a target position using PID control. 
+    """This environment controls a single robot in a penalty kick scenario.
 
         Description:
         Observation:
@@ -135,8 +135,6 @@ class VSSPenaltyEnv(VSSEnv):
 
         goal = self.field.goal_width / 2
         
-        print(f"field_half_length = {field_half_length}; field_half_width = {field_half_width}")
-
         def gk_x(): return random.uniform(field_half_length - self.robot_half_axis, field_half_length)
 
         def gk_y(): return random.uniform(-goal, goal)
@@ -271,11 +269,12 @@ class VSSPenaltyEnv(VSSEnv):
     def _calculate_reward_and_done(self):
         reward = 0
         goal = False
-        w_move = 0.6
-        w_ball_grad = 3
-        w_energy = 0.0184
-        w_goal = 10
+        w_move = 0.5
+        w_ball_grad = 0.8
+        w_energy = 2e-4
+        w_goal = 20
         w_gk = 0.1
+        w_after_ball = 0.5
         if self.reward_info is None:
             self.reward_info = {
                 'goal_score': 0, 
@@ -283,7 +282,8 @@ class VSSPenaltyEnv(VSSEnv):
                 'ball_grad': 0, 
                 'energy': 0,
                 'gk': 0,
-                'reward_total': 0
+                'after_ball': 0,
+                'reward_total': 0,
             }
 
         # Check if goal ocurred
@@ -304,16 +304,20 @@ class VSSPenaltyEnv(VSSEnv):
                 energy_penalty = self.__energy_penalty()
                 # Calculate Goalkeeper reaches ball
                 gk_reaches_ball = self.__gk_reaches_ball()
+                # Calculate reward when the ball is behind the robot
+                after_ball = self.__after_ball()
 
                 reward = w_move * move_reward + \
                     w_ball_grad * grad_ball_potential + \
                     w_energy * energy_penalty + \
-                    w_gk * gk_reaches_ball
+                    w_gk * gk_reaches_ball + \
+                    w_after_ball * after_ball
 
                 self.reward_info['move'] += w_move * move_reward
                 self.reward_info['ball_grad'] += w_ball_grad * grad_ball_potential
                 self.reward_info['energy'] += w_energy * energy_penalty
                 self.reward_info['gk'] += w_gk * gk_reaches_ball
+                self.reward_info['after_ball'] += w_after_ball * after_ball
 
         self.reward_info['reward_total'] += reward
 
@@ -388,3 +392,8 @@ class VSSPenaltyEnv(VSSEnv):
         else:
             return 0
     
+    def __after_ball(self):
+        '''Calculates the reward when the ball is behind the robot'''
+        pos_diff = self.frame.robots_blue[0].x - self.frame.ball.x
+        norm_pos_diff = pos_diff / (self.field.length / 2)
+        return -norm_pos_diff
