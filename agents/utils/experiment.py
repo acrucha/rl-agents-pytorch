@@ -37,6 +37,12 @@ def registering():
         kwargs={"max_steps": 1200},
     )
 
+
+    register(
+        id="GoTo-v0",
+        entry_point="envs.goto:VSSGoToEnv"
+    )
+
 registering()
 
 @dataclasses.dataclass

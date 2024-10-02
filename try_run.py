@@ -27,8 +27,13 @@ register(
     kwargs={"max_steps": 1200},
 )
 
+register(
+    id="GoTo-v0",
+    entry_point="envs.goto:VSSGoToEnv"
+)
+
 # Using VSS Single Agent env
-env = gym.make('VSSEF-v0', render_mode="human")
+env = gym.make('GoTo-v0', render_mode="human")
 
 env.reset()
 # Run for 10 episode and print reward at the end
