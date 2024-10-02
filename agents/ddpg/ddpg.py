@@ -29,7 +29,7 @@ def data_func(
     gif_req_m,
     hp
 ):
-    env = gym.make(hp.ENV_NAME)
+    env = gym.make(hp.ENV_NAME, render_mode="rgb_array")
 
     if hp.ENV_NAME == "VSSEF-v0":
         env = GoncaRewardWrapper(env)

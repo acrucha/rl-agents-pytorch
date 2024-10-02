@@ -29,7 +29,7 @@ def generate_gif(
     # collect frames
     frames = []
     s, _ = env.reset()
-    for t in tqdm(iterable=range(max_episode_steps), desc="Running Episode..."):
+    for t in tqdm(iterable=range(max_episode_steps), desc="Generating gif"):
         if hp.AGENT != "maddpg_async":
             s_v = torch.Tensor(s).to(hp.DEVICE)
             a = pi.get_action(s_v)

@@ -33,7 +33,7 @@ register(
 )
 
 # Using VSS Single Agent env
-env = gym.make('GoTo-v0', render_mode="human")
+env = gym.make('VSS-all-v0', render_mode="human")
 
 env.reset()
 # Run for 10 episode and print reward at the end
