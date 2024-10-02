@@ -153,6 +153,7 @@ class VSSAttackerEnv(VSSBaseEnv):
         w_move = 0.2
         w_ball_grad = 0.8
         w_energy = 2e-4
+        w_ang_vel = 0.1
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {
                 "goal_score": 0,
@@ -161,6 +162,7 @@ class VSSAttackerEnv(VSSBaseEnv):
                 "energy": 0,
                 "goals_blue": 0,
                 "goals_yellow": 0,
+                "ang_vel": 0,
             }
 
         # Check if goal ocurred
@@ -177,16 +179,19 @@ class VSSAttackerEnv(VSSBaseEnv):
         else:
             if self.last_frame is not None:
                 # Calculate ball potential
-                grad_ball_potential = self.__ball_grad()
+                grad_ball_potential = self._ball_grad()
                 # Calculate Move ball
-                move_reward = self.__move_reward()
+                move_reward = self._move_reward()
                 # Calculate Energy penalty
-                energy_penalty = self.__energy_penalty()
+                energy_penalty = self._energy_penalty()
+                # Calculate High Angular Velocity Penalty
+                angular_vel_penalty = self._high_angular_velocity_penalty()
 
                 reward = (
                     w_move * move_reward
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
+                    + w_ang_vel * angular_vel_penalty
                 )
 
                 self.reward_shaping_total["move"] += w_move * move_reward
@@ -194,6 +199,7 @@ class VSSAttackerEnv(VSSBaseEnv):
                     w_ball_grad * grad_ball_potential
                 )
                 self.reward_shaping_total["energy"] += w_energy * energy_penalty
+                self.reward_shaping_total["ang_vel"] += w_ang_vel * angular_vel_penalty
 
         return reward, goal
 
@@ -315,3 +321,28 @@ class VSSAttackerEnv(VSSBaseEnv):
         en_penalty_2 = abs(self.sent_commands[0].v_wheel1)
         energy_penalty = -(en_penalty_1 + en_penalty_2)
         return energy_penalty
+
+    def _high_angular_velocity_penalty(self):
+        """Calculates the high angular velocity penalty
+        
+            If the robot is rotating too fast and the ball is far away, the robot is penalized.
+            This logic is to handle the case where the robot is rotating in place and not moving towards the ball.
+
+            The penalty is calculated based on the value of the Hyperbolic tangent function, 
+            which returns more negative rewards when the ball is far away and positive rewards when the ball is close.
+            This function has the y-axis limits based on the angular velocity of the robot.
+        """
+
+        angular_vel_penalty = 0
+
+        ball = self.frame.ball
+        robot = self.frame.robots_blue[0]
+        dist_to_ball = math.sqrt((ball.x - robot.x) ** 2 + (ball.y - robot.y) ** 2)
+        linear_vel = math.sqrt(robot.v_x ** 2 + robot.v_y ** 2)
+        angular_vel = abs(np.deg2rad(robot.v_theta))
+
+        if linear_vel < 0.3:
+            robot_axis = self.field.rbt_radius * 2
+            angular_vel_penalty = np.tanh(robot_axis - dist_to_ball) * angular_vel
+
+        return angular_vel_penalty
