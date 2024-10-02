@@ -16,6 +16,11 @@ if __name__ == "__main__":
                         action="store_true", help="Enable cuda")
     parser.add_argument("-c", "--checkpoint", required=True,
                         help="checkpoint to load")
+    
+    parser.add_argument("-s", "--steps-per-ep", default=1200, type=int)
+    parser.add_argument("-e", "--episodes", default=100, type=int)
+    parser.add_argument("-t", "--number-of-tests", default=30, type=int)
+
     args = parser.parse_args()
     device = "cuda" if args.cuda else "cpu"
 
@@ -33,30 +38,45 @@ if __name__ == "__main__":
         raise AssertionError
 
     pi.load_state_dict(checkpoint['pi_state_dict'])
-    pi.eval()
+    pi.eval()  
 
-    while True:
-        done = False
-        s, _ = env.reset()
-        info = {}
-        ep_steps = 0
-        ep_rw = 0
-        st_time = time.perf_counter()
-        for i in range(checkpoint['MAX_EPISODE_STEPS']):
-            # Step the environment
-            s_v = torch.Tensor(s).to(device)
-            a = pi.get_action(s_v)
-            s_next, r, done, trunc, info = env.step(a)
-            ep_steps += 1
-            ep_rw += r
-            env.render()
-            if done:
-                break
+    total_tests = args.number_of_tests
+    total_goals_percentage = 0
 
-            # Set state for next step
-            s = s_next
+    while total_tests > 0:
+        goals = 0
+        total_tests -= 1
+        total_episodes = args.episodes
+        while total_episodes > 0:
+            total_episodes -= 1
+            done = False
+            s, _ = env.reset()
+            info = {}
+            ep_steps = 0
+            ep_rw = 0
+            st_time = time.perf_counter()
+            for i in range(args.steps_per_ep):
+                # Step the environment
+                s_v = torch.Tensor(s).to(device)
+                a = pi.get_action(s_v)
+                s_next, r, done, trunc, info = env.step(a)
+                ep_steps += 1
+                ep_rw += r
+                if done:
+                    break
 
-        info['fps'] = ep_steps / (time.perf_counter() - st_time)
-        info['ep_steps'] = ep_steps
-        info['ep_rw'] = ep_rw
-        print(info)
+                # Set state for next step
+                s = s_next
+
+            info['fps'] = ep_steps / (time.perf_counter() - st_time)
+            info['ep_steps'] = ep_steps
+            info['ep_rw'] = ep_rw
+            if total_episodes % 10 == 0:
+                print("Episode done in %d steps, reward %.3f, FPS %.2f, goal_score %d" % (
+                    ep_steps, ep_rw, info['fps'], info['goal_score']))
+            goals += info['goal_score']
+        total_goals_percentage += (goals / args.episodes)
+        print("Test %d - Episode %d - Goal percentage: %.2f" % (args.number_of_tests - total_tests, args.episodes - total_episodes, goals / args.episodes))
+
+    print("--------------------------------")
+    print("Mean goal percentage: %.2f" % (total_goals_percentage / args.number_of_tests))

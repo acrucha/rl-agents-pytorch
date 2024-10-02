@@ -21,8 +21,8 @@ def registering():
     register(
         id="Penalty-v0",
         entry_point="envs.penalty:VSSPenaltyEnv",
-        kwargs={"max_steps": 1200, "repeat_action": 1},
-        max_episode_steps=1200,
+        kwargs={"max_steps": 200, "repeat_action": 1},
+        max_episode_steps=200,
     )
 
     register(
