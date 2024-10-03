@@ -1,7 +1,7 @@
 import math
 import random
 from rsoccer_gym.Utils.Utils import OrnsteinUhlenbeckAction
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import gymnasium as gym
 from gymnasium.utils.colorize import colorize
@@ -15,7 +15,6 @@ from rsoccer_gym.Simulators.rsim import RSimVSS
 
 from collections import namedtuple
 from rsoccer_gym.Render import COLORS
-from envs.extra.Target import Target
 from envs.extra.RobotWithPID import dist_to, abs_smallest_angle_diff, smallest_angle_diff
 
 import pygame
@@ -47,6 +46,8 @@ DIST_TOLERANCE: float = 0.05  # m == 5 cm
 
 Point2D = namedtuple("Point2D", ["x", "y"])
 Point = namedtuple("Point", ["x", "y", "theta"])
+
+TIME_STEP_DIFF = 0.16 / 0.025
 
 class VSSGoToEnv(VSSBaseEnv):
     """This environment generates the best current target point for the robot reach the final target point. 
@@ -84,7 +85,7 @@ class VSSGoToEnv(VSSBaseEnv):
             Target is reached or Episode length is greater than 600 steps
     """
 
-    def __init__(self, render_mode=None, repeat_action=1, max_steps=600):
+    def __init__(self, render_mode=None, repeat_action=int(TIME_STEP_DIFF), max_steps=600):
         super().__init__(field_type=0, n_robots_blue=N_ROBOTS_BLUE, n_robots_yellow=N_ROBOTS_YELLOW,
                          time_step=0.025, render_mode=render_mode)
         
@@ -175,8 +176,8 @@ class VSSGoToEnv(VSSBaseEnv):
 
     def step(self, action):
         self.actual_action = action
-
-        field_half_length = self.field.length / 2  # x
+        
+        field_half_length = self.field.length / 2
         field_half_width = self.field.width / 2
 
         for _ in range(self.repeat_action):
@@ -192,7 +193,6 @@ class VSSGoToEnv(VSSBaseEnv):
             self.frame = self.rsim.get_frame()
 
             target = Point2D(x=action[0]*field_half_length, y=action[1]*field_half_width)
-            # target = self.target_point
 
             self.actual_action = [target.x, target.y]
 
@@ -450,6 +450,7 @@ class VSSGoToEnv(VSSBaseEnv):
     def navigation(self, target: Point):
         robot = list(self.frame.robots_blue.values())[0]
         theta = np.deg2rad(robot.theta)
+        robot_half_axis = self.field.rbt_radius
 
         robot_rear_angle = theta + math.pi
         rear = False
@@ -457,7 +458,7 @@ class VSSGoToEnv(VSSBaseEnv):
         delta_x = target.x - robot.x
         delta_y = target.y - robot.y
 
-        desired_angle = math.atan2(delta_y, delta_x)
+        desired_angle = math.atan2(delta_y, delta_x) if dist_to(robot, target) > robot_half_axis else self.target_angle
         angle_error = smallest_angle_diff(theta, desired_angle)
         rear_angle_error = smallest_angle_diff(robot_rear_angle, desired_angle)
 
@@ -465,25 +466,22 @@ class VSSGoToEnv(VSSBaseEnv):
             angle_error = rear_angle_error
             rear = True
 
-        pid_output = self.pid(angle_error, 0.66, 0, 0)
-
-
-        print(f'angle_error: {pid_output}')
+        KP = 0.7 # KP (VSS-UNIFICATION)
+        MILIMETER_OFFSET = 1000
+        pid_output = self.pid(angle_error, KP * MILIMETER_OFFSET, 0, 0)
 
         angular_velocity = np.clip(pid_output, -self.max_w, self.max_w)
 
-        robot_half_axis = self.field.rbt_radius
         linear_velocity = self.calculate_linear_v() / robot_half_axis
 
         left_motor_speed, right_motor_speed = 0, 0
 
+        if dist_to(robot, target) < DIST_TOLERANCE:
+            linear_velocity = 0
 
         left_motor_speed = linear_velocity - (angular_velocity * robot_half_axis / 2)
         right_motor_speed = linear_velocity + (angular_velocity * robot_half_axis / 2)
-
-        print(f'left_motor_speed: {left_motor_speed}')
-        print(f'right_motor_speed: {right_motor_speed}')
-
+        
         if rear:
             return -right_motor_speed, -left_motor_speed
 
