@@ -150,10 +150,12 @@ class VSSAttackerEnv(VSSBaseEnv):
     def _calculate_reward_and_done(self):
         reward = 0
         goal = False
-        w_move = 0.2
+        w_move = 0.3
         w_ball_grad = 0.8
         w_energy = 2e-4
-        w_ang_vel = 0.1
+        w_ang_vel = 0.4
+        w_goal = 30
+        w_obs = 0.1
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {
                 "goal_score": 0,
@@ -163,18 +165,19 @@ class VSSAttackerEnv(VSSBaseEnv):
                 "goals_blue": 0,
                 "goals_yellow": 0,
                 "ang_vel": 0,
+                "obstacle": 0,
             }
 
         # Check if goal ocurred
         if self.frame.ball.x > (self.field.length / 2):
             self.reward_shaping_total["goal_score"] += 1
             self.reward_shaping_total["goals_blue"] += 1
-            reward = 10
+            reward = w_goal
             goal = True
         elif self.frame.ball.x < -(self.field.length / 2):
             self.reward_shaping_total["goal_score"] -= 1
             self.reward_shaping_total["goals_yellow"] += 1
-            reward = -10
+            reward = -w_goal
             goal = True
         else:
             if self.last_frame is not None:
@@ -186,12 +189,15 @@ class VSSAttackerEnv(VSSBaseEnv):
                 energy_penalty = self._energy_penalty()
                 # Calculate High Angular Velocity Penalty
                 angular_vel_penalty = self._high_angular_velocity_penalty()
+                # Calculate Obstacle Penalty
+                obstacle_reward = self._obstacle_reward()
 
                 reward = (
                     w_move * move_reward
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
                     + w_ang_vel * angular_vel_penalty
+                    + w_obs * obstacle_reward
                 )
 
                 self.reward_shaping_total["move"] += w_move * move_reward
@@ -200,6 +206,7 @@ class VSSAttackerEnv(VSSBaseEnv):
                 )
                 self.reward_shaping_total["energy"] += w_energy * energy_penalty
                 self.reward_shaping_total["ang_vel"] += w_ang_vel * angular_vel_penalty
+                self.reward_shaping_total["obstacle"] += obstacle_reward
 
         return reward, goal
 
@@ -346,3 +353,44 @@ class VSSAttackerEnv(VSSBaseEnv):
             angular_vel_penalty = np.tanh(robot_axis - dist_to_ball) * angular_vel
 
         return angular_vel_penalty
+
+    def _check_collision(self):
+        for i in range(len(self.frame.robots_yellow)):
+            obstacle_pos = np.array(
+                [
+                    self.frame.robots_yellow[i].x,
+                    self.frame.robots_yellow[i].y,
+                ]
+            )
+            agent_pos = np.array(
+                (
+                    self.frame.robots_blue[0].x,
+                    self.frame.robots_blue[0].y,
+                )
+            )
+            dist = np.linalg.norm(agent_pos - obstacle_pos)
+            if dist < 0.2:
+                return True
+        return False
+
+    def _obstacle_reward(self):
+        reward = 0
+        agent_pos = np.array(
+            (
+                self.frame.robots_blue[0].x,
+                self.frame.robots_blue[0].y,
+            )
+        )
+        for i in range(len(self.frame.robots_yellow)):
+            obstacle_pos = np.array(
+                [
+                    self.frame.robots_yellow[i].x,
+                    self.frame.robots_yellow[i].y,
+                ]
+            )
+            dist = np.linalg.norm(agent_pos - obstacle_pos)
+            std = 1
+            exponential = np.exp((-0.5) * (dist / std) ** 2)
+            gaussian = exponential / (std * np.sqrt(2 * np.pi))
+            reward -= gaussian
+        return reward
