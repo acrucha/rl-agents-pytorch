@@ -267,8 +267,6 @@ class VSSGoToEnv(VSSBaseEnv):
 
         self.actions[0] = actions
         target = Point2D(x=actions[0]*self.half_field_width, y=actions[1]*self.half_field_length)
-        print(f"Target: {target.x}, {target.y}")
-        print(f"Actual Action: {actions[0]}, {actions[1]}")
         v_wheel0, v_wheel1 = self.navigation(target)
 
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
