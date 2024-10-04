@@ -20,13 +20,14 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--steps-per-ep", default=1200, type=int)
     parser.add_argument("-e", "--episodes", default=100, type=int)
     parser.add_argument("-t", "--number-of-tests", default=30, type=int)
+    parser.add_argument("--goto", default=False)
 
     args = parser.parse_args()
     device = "cuda" if args.cuda else "cpu"
 
     checkpoint = torch.load(args.checkpoint)
 
-    env = gym.make(checkpoint['ENV_NAME'])
+    env = gym.make(checkpoint['ENV_NAME'], render_mode='human')
 
     if checkpoint['AGENT'] == 'ddpg_async':
         pi = DDPGActor(checkpoint['N_OBS'], checkpoint['N_ACTS']).to(device)
@@ -71,12 +72,16 @@ if __name__ == "__main__":
             info['fps'] = ep_steps / (time.perf_counter() - st_time)
             info['ep_steps'] = ep_steps
             info['ep_rw'] = ep_rw
-            if total_episodes % 10 == 0:
-                print("Episode done in %d steps, reward %.3f, FPS %.2f, goal_score %d" % (
-                    ep_steps, ep_rw, info['fps'], info['goal_score']))
-            goals += info['goal_score']
-        total_goals_percentage += (goals / args.episodes)
-        print("Test %d - Episode %d - Goal percentage: %.2f" % (args.number_of_tests - total_tests, args.episodes - total_episodes, goals / args.episodes))
 
-    print("--------------------------------")
-    print("Mean goal percentage: %.2f" % (total_goals_percentage / args.number_of_tests))
+            if not args.goto:
+                if total_episodes % 10 == 0:
+                    print("Episode done in %d steps, reward %.3f, FPS %.2f, goal_score %d" % (
+                        ep_steps, ep_rw, info['fps'], info['goal_score']))
+                goals += info['goal_score']
+        if not args.goto:
+            total_goals_percentage += (goals / args.episodes)
+            print("Test %d - Episode %d - Goal percentage: %.2f" % (args.number_of_tests - total_tests, args.episodes - total_episodes, goals / args.episodes))
+
+    print("-----------FINISHED-----------")
+    if not args.goto:
+        print("Mean goal percentage: %.2f" % (total_goals_percentage / args.number_of_tests))
