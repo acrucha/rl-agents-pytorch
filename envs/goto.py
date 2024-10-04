@@ -179,10 +179,6 @@ class VSSGoToEnv(VSSBaseEnv):
 
     def step(self, action):
         self.actual_action = action
-        
-        field_half_length = self.field.length / 2
-        field_half_width = self.field.width / 2
-
         for _ in range(self.repeat_action):
             self.steps += 1
             # Join agent action with environment actions
@@ -194,10 +190,6 @@ class VSSGoToEnv(VSSBaseEnv):
             # Get Frame from simulator
             self.last_frame = self.frame
             self.frame = self.rsim.get_frame()
-
-            target = Point2D(x=action[0]*field_half_length, y=action[1]*field_half_width)
-
-            self.actual_action = [target.x, target.y]
 
             # Calculate environment observation, reward and done condition
             observation = self._frame_to_observations()
@@ -272,7 +264,9 @@ class VSSGoToEnv(VSSBaseEnv):
         self.actions = {}
 
         self.actions[0] = actions
-        target = Point2D(x=actions[0], y=actions[1])
+        half_field_length = self.field.length / 2
+        half_field_width = self.field.width / 2
+        target = Point2D(x=actions[0]*half_field_width, y=actions[1]*half_field_length)
         v_wheel0, v_wheel1 = self.navigation(target)
 
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
@@ -339,12 +333,17 @@ class VSSGoToEnv(VSSBaseEnv):
                 np.array(self.all_actions[1:]) - np.array(self.all_actions[:-1])
             )
             self.reward_info["reward_action_var"] = action_var
+            reward -= 1000
 
         self.reward_info["reward_dist"] += dist_reward
         self.reward_info["reward_angle"] += angle_reward
         self.reward_info["reward_total"] += reward
         self.reward_info["reward_steps"] += steps_reward
         self.reward_info["reward_obstacle"] += obstacle_reward
+
+        if self._check_collision():
+            done = True
+            reward = -1000
 
         return reward, done
 
@@ -491,7 +490,8 @@ class VSSGoToEnv(VSSBaseEnv):
                 )
             )
             dist = np.linalg.norm(agent_pos - obstacle_pos)
-            if dist < 0.2:
+            if dist < offset * 2:
+                # print(colorize("ROBOT COLLISION!", "blue", bold=True, highlight=True))
                 return True
         return False
 
@@ -557,6 +557,7 @@ class VSSGoToEnv(VSSBaseEnv):
         pygame.draw.lines(self.window_surface, COLORS["RED"], False, my_path, 1)
 
     def navigation(self, target: Point):
+        target = Point2D(x=self.field.length / 2, y=self.field.width / 2)
         robot = list(self.frame.robots_blue.values())[0]
         theta = np.deg2rad(robot.theta)
         robot_half_axis = self.field.rbt_radius
