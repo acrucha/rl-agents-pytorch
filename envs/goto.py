@@ -130,6 +130,8 @@ class VSSGoToEnv(VSSBaseEnv):
         self.last_angle_reward = 0
         self.last_speed_reward = 0
         self.action_color = COLORS["PINK"]
+        self.half_field_length = self.field.length / 2
+        self.half_field_width = self.field.width / 2
 
         self.integral = []
         self.accumulated_error = 0.0
@@ -264,9 +266,9 @@ class VSSGoToEnv(VSSBaseEnv):
         self.actions = {}
 
         self.actions[0] = actions
-        half_field_length = self.field.length / 2
-        half_field_width = self.field.width / 2
-        target = Point2D(x=actions[0]*half_field_width, y=actions[1]*half_field_length)
+        target = Point2D(x=actions[0]*self.half_field_width, y=actions[1]*self.half_field_length)
+        print(f"Target: {target.x}, {target.y}")
+        print(f"Actual Action: {actions[0]}, {actions[1]}")
         v_wheel0, v_wheel1 = self.navigation(target)
 
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
@@ -348,15 +350,11 @@ class VSSGoToEnv(VSSBaseEnv):
         return reward, done
 
     def _get_initial_positions_frame(self):
-        field_half_length = self.field.length / 2
-        field_half_width = self.field.width / 2
-
-
         def get_random_x():
-            return random.uniform(-field_half_length + 0.1, field_half_length - 0.1)
+            return random.uniform(-self.half_field_width + 0.1, self.half_field_width - 0.1)
 
         def get_random_y():
-            return random.uniform(-field_half_width + 0.1, field_half_width - 0.1)
+            return random.uniform(-self.half_field_length + 0.1, self.half_field_length - 0.1)
 
         def get_random_theta():
             return random.uniform(0, 360)
@@ -433,8 +431,8 @@ class VSSGoToEnv(VSSBaseEnv):
         return pos_frame
     
     def _dist_reward(self):
-        action_target_x = self.actual_action[0] * self.field.length / 2
-        action_target_y = self.actual_action[1] * self.field.width / 2
+        action_target_x = self.actual_action[0] * self.half_field_width
+        action_target_y = self.actual_action[1] * self.half_field_length
         action = Point2D(x=action_target_x, y=action_target_y)
         target = self.target_point
         actual_dist = dist_to(action, target)
@@ -462,16 +460,14 @@ class VSSGoToEnv(VSSBaseEnv):
 
     def _check_collision(self):
         offset = self.field.rbt_radius * 1.5
-        half_field_length = self.field.length / 2
-        half_field_width = self.field.width / 2
         robot_x = self.frame.robots_blue[0].x
         robot_y = self.frame.robots_blue[0].y
 
         # wall collisions
-        if (robot_y <= -half_field_length + offset) or (
-            robot_y >= half_field_length - offset
-        ) or (robot_x <= -half_field_width + offset) or (
-            robot_x >= half_field_width - offset):
+        if (robot_y <= -self.half_field_length + offset) or (
+            robot_y >= self.half_field_length - offset
+        ) or (robot_x <= -self.half_field_width + offset) or (
+            robot_x >= self.half_field_width - offset):
             # print(colorize("WALL COLLISION!", "red", bold=True, highlight=True))
             return True
 
@@ -545,7 +541,7 @@ class VSSGoToEnv(VSSBaseEnv):
         self.draw_target(self.window_surface, pos_transform, self.target_point, self.target_angle, COLORS["PINK"])
 
         # Draw Current Target
-        self.draw_target(self.window_surface, pos_transform, Point2D(self.actual_action[0], self.actual_action[1]), 0, COLORS["GREEN"])
+        self.draw_target(self.window_surface, pos_transform, Point2D(self.actual_action[0]*self.half_field_width, self.actual_action[1]*self.half_field_length), 0, COLORS["GREEN"])
         
         # Draw Path
         if len(self.robot_path) > 1:
@@ -557,7 +553,6 @@ class VSSGoToEnv(VSSBaseEnv):
         pygame.draw.lines(self.window_surface, COLORS["RED"], False, my_path, 1)
 
     def navigation(self, target: Point):
-        target = Point2D(x=self.field.length / 2, y=self.field.width / 2)
         robot = list(self.frame.robots_blue.values())[0]
         theta = np.deg2rad(robot.theta)
         robot_half_axis = self.field.rbt_radius
