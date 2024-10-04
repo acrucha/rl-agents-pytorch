@@ -20,8 +20,8 @@ from envs.extra.RobotWithPID import dist_to, abs_smallest_angle_diff, smallest_a
 import pygame
 
 
-N_ROBOTS_BLUE = 1
-N_ROBOTS_YELLOW = 0
+N_ROBOTS_BLUE = 3
+N_ROBOTS_YELLOW = 3
 TIMEOUT = 3.5
 MAX_DIST_TO_TARGET = 1
 MAX_DIST_ANGLE_REWARD = 8
@@ -43,6 +43,8 @@ ANGLE_TOLERANCE: float = np.deg2rad(5)  # 5 degrees
 SPEED_MIN_TOLERANCE: float = 0.05  # m/s == 5 cm/s
 SPEED_MAX_TOLERANCE: float = 0.3  # m/s == 30 cm/s
 DIST_TOLERANCE: float = 0.05  # m == 5 cm
+
+OBSERVATIONS_SIZE = 46
 
 Point2D = namedtuple("Point2D", ["x", "y"])
 Point = namedtuple("Point", ["x", "y", "theta"])
@@ -101,7 +103,7 @@ class VSSGoToEnv(VSSBaseEnv):
         
         self.observation_space = gym.spaces.Box(low=-self.NORM_BOUNDS,
                                                 high=self.NORM_BOUNDS,
-                                                shape=(11, ), dtype=np.float32)
+                                                shape=(OBSERVATIONS_SIZE, ), dtype=np.float32)
 
         # Initialize Class Atributes
         self.previous_target_potential = None
@@ -149,6 +151,7 @@ class VSSGoToEnv(VSSBaseEnv):
             "reward_objective": 0,
             "reward_total": 0,
             "reward_steps": 0,
+            "reward_obstacle": 0,
         }
 
         self.max_steps = max_steps
@@ -223,15 +226,46 @@ class VSSGoToEnv(VSSBaseEnv):
         # observation.append(self.norm_v(self.target_velocity.x))
         # observation.append(self.norm_v(self.target_velocity.y))
     
-        observation.append(self.norm_pos(self.frame.robots_blue[0].x))
-        observation.append(self.norm_pos(self.frame.robots_blue[0].y))
-        observation.append(np.sin(np.deg2rad(self.frame.robots_blue[0].theta)))
-        observation.append(np.cos(np.deg2rad(self.frame.robots_blue[0].theta)))
-        observation.append(self.norm_v(self.frame.robots_blue[0].v_x))
-        observation.append(self.norm_v(self.frame.robots_blue[0].v_y))
-        observation.append(self.norm_w(self.frame.robots_blue[0].v_theta))
+        for i in range(self.n_robots_blue):
+            observation.append(self.norm_pos(self.frame.robots_blue[i].x))
+            observation.append(self.norm_pos(self.frame.robots_blue[i].y))
+            observation.append(np.sin(np.deg2rad(self.frame.robots_blue[i].theta)))
+            observation.append(np.cos(np.deg2rad(self.frame.robots_blue[i].theta)))
+            observation.append(self.norm_v(self.frame.robots_blue[i].v_x))
+            observation.append(self.norm_v(self.frame.robots_blue[i].v_y))
+            observation.append(self.norm_w(self.frame.robots_blue[i].v_theta))
+
+        for i in range(self.n_robots_yellow):
+            observation.append(self.norm_pos(self.frame.robots_yellow[i].x))
+            observation.append(self.norm_pos(self.frame.robots_yellow[i].y))
+            observation.append(np.sin(np.deg2rad(self.frame.robots_yellow[i].theta)))
+            observation.append(np.cos(np.deg2rad(self.frame.robots_yellow[i].theta)))
+            observation.append(self.norm_v(self.frame.robots_yellow[i].v_x))
+            observation.append(self.norm_v(self.frame.robots_yellow[i].v_y))
+            observation.append(self.norm_w(self.frame.robots_yellow[i].v_theta))
 
         return np.array(observation, dtype=np.float32)
+    
+    def __actions_to_v_wheels(self, actions):
+        left_wheel_speed = actions[0] * self.max_v
+        right_wheel_speed = actions[1] * self.max_v
+
+        left_wheel_speed, right_wheel_speed = np.clip(
+            (left_wheel_speed, right_wheel_speed), -self.max_v, self.max_v
+        )
+
+        # Deadzone
+        if -self.v_wheel_deadzone < left_wheel_speed < self.v_wheel_deadzone:
+            left_wheel_speed = 0
+
+        if -self.v_wheel_deadzone < right_wheel_speed < self.v_wheel_deadzone:
+            right_wheel_speed = 0
+
+        # Convert to rad/s
+        left_wheel_speed /= self.field.rbt_wheel_radius
+        right_wheel_speed /= self.field.rbt_wheel_radius
+
+        return left_wheel_speed, right_wheel_speed
 
     def _get_commands(self, actions):
         commands = []
@@ -243,6 +277,21 @@ class VSSGoToEnv(VSSBaseEnv):
 
         commands.append(Robot(yellow=False, id=0, v_wheel0=v_wheel0, v_wheel1=v_wheel1))
 
+        # Send random commands to the other robots
+        for i in range(1, self.n_robots_blue):
+            actions = self.ou_actions[i].sample()
+            self.actions[i] = actions
+            v_wheel0, v_wheel1 = self.__actions_to_v_wheels(actions)
+            commands.append(
+                Robot(yellow=False, id=i, v_wheel0=v_wheel0, v_wheel1=v_wheel1)
+            )
+        for i in range(self.n_robots_yellow):
+            actions = self.ou_actions[self.n_robots_blue + i].sample()
+            v_wheel0, v_wheel1 = self.__actions_to_v_wheels(actions)
+            commands.append(
+                Robot(yellow=True, id=i, v_wheel0=v_wheel0, v_wheel1=v_wheel1)
+            )
+
         return commands
 
     def _calculate_reward_and_done(self):
@@ -251,6 +300,7 @@ class VSSGoToEnv(VSSBaseEnv):
         dist_reward, distance = self._dist_reward()
         angle_reward, angle_diff = self._angle_reward()
         steps_reward = -2 * (self.steps / self.max_steps)
+        obstacle_reward = self._obstacle_reward()
 
         robot_dist = np.linalg.norm(
             np.array(
@@ -281,7 +331,7 @@ class VSSGoToEnv(VSSBaseEnv):
             self.reward_info["reward_objective"] += reward
             print(colorize("TARGET REACHED!", "green", bold=True, highlight=True))
         else:
-            reward = dist_reward + angle_reward + steps_reward
+            reward = dist_reward + angle_reward + steps_reward + obstacle_reward
 
         if done or self.steps >= self.max_steps:
             # pairwise distance between all actions
@@ -294,6 +344,7 @@ class VSSGoToEnv(VSSBaseEnv):
         self.reward_info["reward_angle"] += angle_reward
         self.reward_info["reward_total"] += reward
         self.reward_info["reward_steps"] += steps_reward
+        self.reward_info["reward_obstacle"] += obstacle_reward
 
         return reward, done
 
@@ -377,6 +428,7 @@ class VSSGoToEnv(VSSBaseEnv):
             "reward_objective": 0,
             "reward_total": 0,
             "reward_steps": 0,
+            "reward_obstacle": 0,
         }
         self.robot_path = [(pos_frame.robots_blue[0].x, pos_frame.robots_blue[0].y)] * 2
         return pos_frame
@@ -407,6 +459,48 @@ class VSSGoToEnv(VSSBaseEnv):
         speed_reward = reward - self.last_speed_reward
         self.last_speed_reward = reward
         return speed_reward
+
+
+    def _check_collision(self):
+        for i in range(len(self.frame.robots_yellow)):
+            obstacle_pos = np.array(
+                [
+                    self.frame.robots_yellow[i].x,
+                    self.frame.robots_yellow[i].y,
+                ]
+            )
+            agent_pos = np.array(
+                (
+                    self.frame.robots_blue[0].x,
+                    self.frame.robots_blue[0].y,
+                )
+            )
+            dist = np.linalg.norm(agent_pos - obstacle_pos)
+            if dist < 0.2:
+                return True
+        return False
+
+    def _obstacle_reward(self):
+        reward = 0
+        agent_pos = np.array(
+            (
+                self.frame.robots_blue[0].x,
+                self.frame.robots_blue[0].y,
+            )
+        )
+        for i in range(len(self.frame.robots_yellow)):
+            obstacle_pos = np.array(
+                [
+                    self.frame.robots_yellow[i].x,
+                    self.frame.robots_yellow[i].y,
+                ]
+            )
+            dist = np.linalg.norm(agent_pos - obstacle_pos)
+            std = 1
+            exponential = np.exp((-0.5) * (dist / std) ** 2)
+            gaussian = exponential / (std * np.sqrt(2 * np.pi))
+            reward -= gaussian
+        return reward
 
     def draw_target(self, screen, transformer, point, angle, color):
         x, y = transformer(point.x, point.y)
