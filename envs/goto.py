@@ -462,6 +462,21 @@ class VSSGoToEnv(VSSBaseEnv):
 
 
     def _check_collision(self):
+        offset = self.field.rbt_radius * 1.5
+        half_field_length = self.field.length / 2
+        half_field_width = self.field.width / 2
+        robot_x = self.frame.robots_blue[0].x
+        robot_y = self.frame.robots_blue[0].y
+
+        # wall collisions
+        if (robot_y <= -half_field_length + offset) or (
+            robot_y >= half_field_length - offset
+        ) or (robot_x <= -half_field_width + offset) or (
+            robot_x >= half_field_width - offset):
+            # print(colorize("WALL COLLISION!", "red", bold=True, highlight=True))
+            return True
+
+        # robot collisions
         for i in range(len(self.frame.robots_yellow)):
             obstacle_pos = np.array(
                 [
