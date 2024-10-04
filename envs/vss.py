@@ -153,9 +153,9 @@ class VSSAttackerEnv(VSSBaseEnv):
         w_move = 0.3
         w_ball_grad = 0.8
         w_energy = 2e-4
-        w_ang_vel = 0.4
+        w_ang_vel = 0.2
         w_goal = 30
-        w_obs = 0.1
+        w_obs = 0.2
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {
                 "goal_score": 0,
@@ -199,6 +199,11 @@ class VSSAttackerEnv(VSSBaseEnv):
                     + w_ang_vel * angular_vel_penalty
                     + w_obs * obstacle_reward
                 )
+
+                # print("Move to Ball Reward: ", move_reward * w_move)
+                # print("Ball Grad Reward: ", grad_ball_potential * w_ball_grad)
+                # print("Energy Penalty: ", energy_penalty * w_energy)
+                # print("Angular Vel Penalty: ", angular_vel_penalty * w_ang_vel)
 
                 self.reward_shaping_total["move"] += w_move * move_reward
                 self.reward_shaping_total["ball_grad"] += (
@@ -347,10 +352,20 @@ class VSSAttackerEnv(VSSBaseEnv):
         dist_to_ball = math.sqrt((ball.x - robot.x) ** 2 + (ball.y - robot.y) ** 2)
         linear_vel = math.sqrt(robot.v_x ** 2 + robot.v_y ** 2)
         angular_vel = abs(np.deg2rad(robot.v_theta))
+        rbt_axis = self.field.rbt_radius * 2
 
-        if linear_vel < 0.3:
+        if dist_to_ball > rbt_axis:
             robot_axis = self.field.rbt_radius * 2
             angular_vel_penalty = np.tanh(robot_axis - dist_to_ball) * angular_vel
+
+            if angular_vel_penalty > 0:
+                angular_vel_penalty = 0
+
+        ball_vel_norm = math.sqrt(ball.v_x ** 2 + ball.v_y ** 2)
+        if ball.v_x > 0:
+            angular_vel_penalty += ball_vel_norm
+        else:
+            angular_vel_penalty -= ball_vel_norm
 
         return angular_vel_penalty
 
