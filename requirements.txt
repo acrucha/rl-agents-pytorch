@@ -1,6 +1,7 @@
 torch==2.0.0
 gymnasium
 git+https://github.com/goncamateus/rSoccer.git@dev#egg=rsoccer_gym
+git+https://github.com/robocin/rSim.git@feat/update-parameters#egg=rc-robosim
 wandb>=0.16.0
 pyvirtualdisplay>=3.0
 moviepy >= 1.0.0
