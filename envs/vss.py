@@ -150,11 +150,11 @@ class VSSAttackerEnv(VSSBaseEnv):
     def _calculate_reward_and_done(self):
         reward = 0
         goal = False
-        w_move = 0.3
+        w_move = 0.2
         w_ball_grad = 0.8
         w_energy = 2e-4
+        w_goal = 10
         w_ang_vel = 0.2
-        w_goal = 30
         w_obs = 0.2
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {
@@ -164,8 +164,8 @@ class VSSAttackerEnv(VSSBaseEnv):
                 "energy": 0,
                 "goals_blue": 0,
                 "goals_yellow": 0,
-                "ang_vel": 0,
-                "obstacle": 0,
+                # "ang_vel": 0,
+                # "obstacle": 0,
             }
 
         # Check if goal ocurred
@@ -187,17 +187,17 @@ class VSSAttackerEnv(VSSBaseEnv):
                 move_reward = self._move_reward()
                 # Calculate Energy penalty
                 energy_penalty = self._energy_penalty()
-                # Calculate High Angular Velocity Penalty
-                angular_vel_penalty = self._high_angular_velocity_penalty()
-                # Calculate Obstacle Penalty
-                obstacle_reward = self._obstacle_reward()
+                # # Calculate High Angular Velocity Penalty
+                # angular_vel_penalty = self._high_angular_velocity_penalty()
+                # # Calculate Obstacle Penalty
+                # obstacle_reward = self._obstacle_reward()
 
                 reward = (
                     w_move * move_reward
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
-                    + w_ang_vel * angular_vel_penalty
-                    + w_obs * obstacle_reward
+                    # + w_ang_vel * angular_vel_penalty
+                    # + w_obs * obstacle_reward
                 )
 
                 # print("Move to Ball Reward: ", move_reward * w_move)
@@ -210,8 +210,8 @@ class VSSAttackerEnv(VSSBaseEnv):
                     w_ball_grad * grad_ball_potential
                 )
                 self.reward_shaping_total["energy"] += w_energy * energy_penalty
-                self.reward_shaping_total["ang_vel"] += w_ang_vel * angular_vel_penalty
-                self.reward_shaping_total["obstacle"] += obstacle_reward
+                # self.reward_shaping_total["ang_vel"] += w_ang_vel * angular_vel_penalty
+                # self.reward_shaping_total["obstacle"] += obstacle_reward
 
         return reward, goal
 
