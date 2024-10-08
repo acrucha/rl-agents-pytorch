@@ -81,6 +81,9 @@ class VSSAttackerEnv(VSSBaseEnv):
             self.ou_actions.append(
                 OrnsteinUhlenbeckAction(self.action_space, dt=self.time_step)
             )
+        
+        MAX_WHEEL_SPEED = 100 # 100 rad/s
+        self.max_v = MAX_WHEEL_SPEED * self.field.rbt_wheel_radius
 
     def reset(self, *, seed=None, options=None):
         self.actions = None
