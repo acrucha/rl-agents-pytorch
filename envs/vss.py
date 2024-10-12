@@ -9,6 +9,9 @@ from rsoccer_gym.Entities import Frame, Robot, Ball
 from rsoccer_gym.vss.vss_gym_base import VSSBaseEnv
 from rsoccer_gym.Utils import KDTree
 
+from envs.utils.Field import Field
+from envs.utils.Point import Point
+
 
 class VSSAttackerEnv(VSSBaseEnv):
     """This environment controls a single robot in a VSS soccer League 3v3 match
@@ -82,8 +85,10 @@ class VSSAttackerEnv(VSSBaseEnv):
                 OrnsteinUhlenbeckAction(self.action_space, dt=self.time_step)
             )
         
-        MAX_WHEEL_SPEED = 100 # 100 rad/s
+        MAX_WHEEL_SPEED = 50 # 100 rad/s
         self.max_v = MAX_WHEEL_SPEED * self.field.rbt_wheel_radius
+
+        self.field = Field(self.field)
 
     def reset(self, *, seed=None, options=None):
         self.actions = None
@@ -159,6 +164,7 @@ class VSSAttackerEnv(VSSBaseEnv):
         w_goal = 10
         w_ang_vel = 0.2
         w_obs = 0.2
+        w_ball_to_goal = 0.8
         if self.reward_shaping_total is None:
             self.reward_shaping_total = {
                 "goal_score": 0,
@@ -167,6 +173,7 @@ class VSSAttackerEnv(VSSBaseEnv):
                 "energy": 0,
                 "goals_blue": 0,
                 "goals_yellow": 0,
+                "ball_to_goal": 0,
                 # "ang_vel": 0,
                 # "obstacle": 0,
             }
@@ -195,28 +202,73 @@ class VSSAttackerEnv(VSSBaseEnv):
                 # # Calculate Obstacle Penalty
                 # obstacle_reward = self._obstacle_reward()
 
+                ball_to_goal_reward = self._ball_towards_goal_reward()
+                ball_to_goal_penalty = self._ball_towards_goal_reward(enemy_goal=False)
+                total_ball_to_goal_reward = ball_to_goal_reward - ball_to_goal_penalty
+
                 reward = (
                     w_move * move_reward
                     + w_ball_grad * grad_ball_potential
                     + w_energy * energy_penalty
+                    + w_ball_to_goal * total_ball_to_goal_reward
                     # + w_ang_vel * angular_vel_penalty
                     # + w_obs * obstacle_reward
                 )
 
+                # print("Reward: ", reward)
                 # print("Move to Ball Reward: ", move_reward * w_move)
                 # print("Ball Grad Reward: ", grad_ball_potential * w_ball_grad)
                 # print("Energy Penalty: ", energy_penalty * w_energy)
                 # print("Angular Vel Penalty: ", angular_vel_penalty * w_ang_vel)
+                # print("Ball to Goal Reward: ", total_ball_to_goal_reward * w_ball_to_goal)
 
                 self.reward_shaping_total["move"] += w_move * move_reward
                 self.reward_shaping_total["ball_grad"] += (
                     w_ball_grad * grad_ball_potential
                 )
                 self.reward_shaping_total["energy"] += w_energy * energy_penalty
+                self.reward_shaping_total["ball_to_goal"] += w_ball_to_goal * total_ball_to_goal_reward
                 # self.reward_shaping_total["ang_vel"] += w_ang_vel * angular_vel_penalty
                 # self.reward_shaping_total["obstacle"] += obstacle_reward
 
         return reward, goal
+    
+    def __is_ball_towards_goal(self, ball: Point, ball_velocity: Point, goal_outside_bottom: Point, goal_outside_top: Point):
+        bottom_verser_x = (goal_outside_bottom.x - ball.x) / \
+                          (ball.dist_to(goal_outside_bottom) + 1e-9)
+        bottom_verser_y = (goal_outside_bottom.y - ball.y) / \
+                          (ball.dist_to(goal_outside_bottom) + 1e-9)
+        bottom_verser = Point(bottom_verser_x, bottom_verser_y)
+
+        top_verser_x = (goal_outside_top.x - ball.x) / \
+                       (ball.dist_to(goal_outside_top) + 1e-9)
+        top_verser_y = (goal_outside_top.y - ball.y) / \
+                       (ball.dist_to(goal_outside_top) + 1e-9)
+        top_verser = Point(top_verser_x, top_verser_y)
+
+        vel_verser = ball_velocity * (1 / (ball_velocity.length() + 1e-9))
+
+        if vel_verser.dot(bottom_verser) > bottom_verser.dot(top_verser) and \
+           vel_verser.dot(top_verser) > bottom_verser.dot(top_verser):
+            return True
+        else:
+            return False
+        
+    def _ball_towards_goal_reward(self, enemy_goal=True):
+        ball = Point(self.frame.ball.x, self.frame.ball.y)
+        ball_velocity = Point(self.frame.ball.v_x, self.frame.ball.v_y)
+
+        if not enemy_goal:
+            goal_outside_bottom = self.field.left_goal_outside_bottom
+            goal_outside_top = self.field.left_goal_outside_top
+        else:
+            goal_outside_bottom = self.field.right_goal_outside_bottom
+            goal_outside_top = self.field.right_goal_outside_top
+
+        if self.__is_ball_towards_goal(ball, ball_velocity, goal_outside_bottom, goal_outside_top):
+            return 10 * ball_velocity.length()
+        else:
+            return -1 * ball_velocity.length()
 
     def _get_initial_positions_frame(self):
         """Returns the position of each robot and ball for the initial frame"""
@@ -412,3 +464,7 @@ class VSSAttackerEnv(VSSBaseEnv):
             gaussian = exponential / (std * np.sqrt(2 * np.pi))
             reward -= gaussian
         return reward
+    
+    def _render(self):
+        super()._render()
+        # self.field.render_points(self.window_surface, self.field_renderer)
