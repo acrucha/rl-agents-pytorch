@@ -8,6 +8,7 @@ import time
 import gymnasium as gym
 import numpy as np
 import rsoccer_gym
+import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 import torch.optim as optim
@@ -33,6 +34,8 @@ if __name__ == "__main__":
                         help="Name of the gym environment")
     
     parser.add_argument("--track", default=False, help="Enable wandb")
+
+    parser.add_argument("--use-caps", default=False, help="Enable CAPS")
     
     args = parser.parse_args()
     device = "cuda" if args.cuda else "cpu"
@@ -97,6 +100,12 @@ if __name__ == "__main__":
     tgt_Q = TargetCritic(Q)
     pi_opt = optim.Adam(pi.parameters(), lr=hp.LEARNING_RATE)
     Q_opt = optim.Adam(Q.parameters(), lr=hp.LEARNING_RATE)
+
+    # CAPS
+    lambda_temporal = 1
+    lambda_spacial = 2
+    caps_epsilon = 0.05
+
     buffer = ReplayBuffer(buffer_size=hp.REPLAY_SIZE,
                           observation_space=hp.observation_space,
                           action_space=hp.action_space,
@@ -170,6 +179,20 @@ if __name__ == "__main__":
             A_cur_v = pi(S_v)
             pi_loss_v = -Q(S_v, A_cur_v)
             pi_loss_v = pi_loss_v.mean()
+
+            if args.use_caps:
+                # CAPS
+                if lambda_temporal:
+                    temporal_dist = torch.norm(A_next_v - A_cur_v, dim=1).mean()
+                    pi_loss_v += lambda_temporal * temporal_dist
+                if lambda_spacial:
+                    state_batch_bar = torch.normal(batch, caps_epsilon)
+                    state_batch_bar = torch.clamp(state_batch_bar, -1.2, 1.2)
+                    pi_bar, _, _ = pi(state_batch_bar)
+                    spacial_dist = torch.norm(pi_bar - A_cur_v, dim=1).mean()
+                    pi_loss_v += lambda_spacial * spacial_dist
+
+
             pi_loss_v.backward()
             pi_opt.step()
             metrics["train/loss_pi"] = pi_loss_v.cpu().detach().numpy()
