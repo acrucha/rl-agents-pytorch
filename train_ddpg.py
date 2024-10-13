@@ -12,6 +12,7 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
 import torch.optim as optim
+from tqdm import tqdm
 
 import wandb
 from agents.ddpg import (DDPGHP, DDPGActor, DDPGCritic, TargetActor,
@@ -45,7 +46,7 @@ if __name__ == "__main__":
         EXP_NAME=args.name,
         DEVICE=device,
         ENV_NAME=args.env,
-        N_ROLLOUT_PROCESSES=1,
+        N_ROLLOUT_PROCESSES=4,
         LEARNING_RATE=0.0001,
         EXP_GRAD_RATIO=10,
         BATCH_SIZE=256,
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         REPLAY_INITIAL=100000,
         SAVE_FREQUENCY=100000,
         GIF_FREQUENCY=100000,
-        TOTAL_GRAD_STEPS=2000000,
+        TOTAL_GRAD_STEPS=2500000,
         MAX_EPISODE_STEPS=1200,
     )
     if args.track:
@@ -103,7 +104,7 @@ if __name__ == "__main__":
 
     # CAPS
     lambda_temporal = 1
-    lambda_spacial = 2
+    lambda_spacial = 5
     caps_epsilon = 0.05
 
     buffer = ReplayBuffer(buffer_size=hp.REPLAY_SIZE,
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     last_gif = None
 
     try:
-        while n_grads < hp.TOTAL_GRAD_STEPS:
+        for _ in tqdm(range(hp.TOTAL_GRAD_STEPS + 1), colour='green', unit='steps', desc='Training'):
             metrics = {}
             ep_infos = list()
             st_time = time.perf_counter()
@@ -175,7 +176,6 @@ if __name__ == "__main__":
             metrics["train/loss_Q"] = Q_loss_v.cpu().detach().numpy()
 
             # train actor - Maximize Q value received over every S
-            pi_opt.zero_grad()
             A_cur_v = pi(S_v)
             pi_loss_v = -Q(S_v, A_cur_v)
             pi_loss_v = pi_loss_v.mean()
@@ -184,15 +184,15 @@ if __name__ == "__main__":
                 # CAPS
                 if lambda_temporal:
                     temporal_dist = torch.norm(A_next_v - A_cur_v, dim=1).mean()
-                    pi_loss_v += lambda_temporal * temporal_dist
+                    pi_loss_v -= lambda_temporal * temporal_dist
                 if lambda_spacial:
-                    state_batch_bar = torch.normal(batch, caps_epsilon)
+                    state_batch_bar = torch.normal(S_v, caps_epsilon)
                     state_batch_bar = torch.clamp(state_batch_bar, -1.2, 1.2)
-                    pi_bar, _, _ = pi(state_batch_bar)
+                    pi_bar = pi(state_batch_bar)
                     spacial_dist = torch.norm(pi_bar - A_cur_v, dim=1).mean()
-                    pi_loss_v += lambda_spacial * spacial_dist
+                    pi_loss_v -= lambda_spacial * spacial_dist
 
-
+            pi_opt.zero_grad()
             pi_loss_v.backward()
             pi_opt.step()
             metrics["train/loss_pi"] = pi_loss_v.cpu().detach().numpy()
@@ -226,7 +226,7 @@ if __name__ == "__main__":
                 with sigma_m.get_lock():
                     sigma_m.value *= hp.NOISE_SIGMA_DECAY
 
-            if hp.SAVE_FREQUENCY and n_grads % hp.SAVE_FREQUENCY == 0:
+            if (hp.SAVE_FREQUENCY and n_grads % hp.SAVE_FREQUENCY == 0) or (n_grads == hp.TOTAL_GRAD_STEPS):
                 print("Saving checkpoint at grad step %d" % n_grads)
                 save_checkpoint(
                     hp=hp,
@@ -242,7 +242,7 @@ if __name__ == "__main__":
                     Q_opt=Q_opt
                 )
 
-            if hp.GIF_FREQUENCY and n_grads % hp.GIF_FREQUENCY == 0:
+            if (hp.GIF_FREQUENCY and n_grads % hp.GIF_FREQUENCY == 0) or (n_grads == hp.TOTAL_GRAD_STEPS):
                 gif_req_m.value = n_grads
 
     except KeyboardInterrupt:
